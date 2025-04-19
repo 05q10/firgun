@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import '../app/comic/comic.css'
+
 
 @plugin "tailwindcss-animate";
 
@@ -123,4 +125,8 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+html, body {
+  height: 100%;
+  overflow-x: hidden;
 }
