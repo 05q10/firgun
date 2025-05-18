@@ -27,29 +27,58 @@ const Narrative: React.FC = () => {
 
   // Fetch writings on component mount
   useEffect(() => {
-    fetch('/writings.json')
-      .then(response => response.json())
-      .then((data: { writings: Writing[] }) => {
-        setWritings(data.writings);
-        setFilteredWritings(data.writings);
+    fetch('http://localhost:5000/api/writings')
+      .then(response => {
+        console.log('Response status:', response.status);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
       })
-      .catch(error => console.error('Error fetching writings:', error));
+      .then((data) => {
+        console.log('API Response:', data);
+        // Handle different possible response formats
+        let writingsArray: Writing[] = [];
+        
+        if (Array.isArray(data)) {
+          writingsArray = data;
+        } else if (data.writings && Array.isArray(data.writings)) {
+          writingsArray = data.writings;
+        } else if (data.data && Array.isArray(data.data)) {
+          writingsArray = data.data;
+        }
+        
+        console.log('Processed writings:', writingsArray);
+        setWritings(writingsArray);
+        setFilteredWritings(writingsArray);
+      })
+      .catch(error => {
+        console.error('Error fetching writings:', error);
+        setWritings([]);
+        setFilteredWritings([]);
+      });
   }, []);
 
   // Get unique filter options
-  const allGenres = [...new Set(writings.flatMap(w => w.genre || []))];
-  const allThemes = [...new Set(writings.flatMap(w => w.themes || []))];
-  const allTags = [...new Set(writings.flatMap(w => w.tags || []))];
+  const allGenres = writings && writings.length > 0 
+    ? [...new Set(writings.flatMap(w => w.genre || []))]
+    : [];
+  const allThemes = writings && writings.length > 0 
+    ? [...new Set(writings.flatMap(w => w.themes || []))]
+    : [];
+  const allTags = writings && writings.length > 0 
+    ? [...new Set(writings.flatMap(w => w.tags || []))]
+    : [];
 
   // Filter writings based on search term and filters
   useEffect(() => {
-    let filtered = writings;
+    let filtered = writings || [];
 
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(writing => 
-        writing.title.toLowerCase().includes(term) || 
-        writing.summary.toLowerCase().includes(term) ||
+        writing.title?.toLowerCase().includes(term) || 
+        writing.summary?.toLowerCase().includes(term) ||
         writing.genre?.some(g => g.toLowerCase().includes(term)) ||
         writing.themes?.some(t => t.toLowerCase().includes(term)) ||
         writing.tags?.some(t => t.toLowerCase().includes(term))
@@ -117,7 +146,7 @@ const Narrative: React.FC = () => {
       <main style={{ width: '100vw', maxWidth: '100vw', padding: '0 16px' }}>
         <div className="flex justify-between items-center mb-6 pt-6">
           <p className="text-amber-800 font-['Lora']">
-            Showing {filteredWritings.length} of {writings.length} writings
+            Showing {filteredWritings?.length || 0} of {writings?.length || 0} writings
           </p>
           <button 
             onClick={() => setShowFilters(!showFilters)}
@@ -138,7 +167,7 @@ const Narrative: React.FC = () => {
                     <button
                       key={genre}
                       onClick={() => toggleFilter('genres', genre)}
-                      className={`px-3 py-1 rounded-full text-sm ${
+                      className={`px-3 py-1 rounded-full text-sm transition-colors ${
                         filters.genres.includes(genre) 
                           ? 'bg-amber-400 text-white' 
                           : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
@@ -156,7 +185,7 @@ const Narrative: React.FC = () => {
                     <button
                       key={theme}
                       onClick={() => toggleFilter('themes', theme)}
-                      className={`px-3 py-1 rounded-full text-sm ${
+                      className={`px-3 py-1 rounded-full text-sm transition-colors ${
                         filters.themes.includes(theme) 
                           ? 'bg-amber-400 text-white' 
                           : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
@@ -174,7 +203,7 @@ const Narrative: React.FC = () => {
                     <button
                       key={tag}
                       onClick={() => toggleFilter('tags', tag)}
-                      className={`px-3 py-1 rounded-full text-sm ${
+                      className={`px-3 py-1 rounded-full text-sm transition-colors ${
                         filters.tags.includes(tag) 
                           ? 'bg-amber-400 text-white' 
                           : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
@@ -189,50 +218,59 @@ const Narrative: React.FC = () => {
           </div>
         )}
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6">
-          {filteredWritings.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-6">
+          {filteredWritings && filteredWritings.length > 0 ? (
             filteredWritings.map((writing) => (
               <Link key={writing.id} href={`/writing/${writing.id}`} passHref>
-                <div className="bg-white/80 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition duration-300 border border-amber-100 h-full flex flex-col cursor-pointer">
-                  <div className="relative h-40 bg-gradient-to-r from-amber-200 to-rose-200">
-                    <div className="absolute inset-0 flex items-center justify-center text-white/30 text-6xl font-thin">
-                      ✽
+                <div className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 border border-amber-100 h-full flex flex-col cursor-pointer hover:scale-105">
+                  <div className="h-36 bg-gradient-to-br from-yellow-100 via-orange-100 to-red-100 relative">
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
+                        <div className="text-2xl text-amber-600/60">✽</div>
+                      </div>
                     </div>
                   </div>
                   <div className="p-4 flex-grow flex flex-col">
-                    <h2 className="text-xl mb-2 text-amber-900 font-['Cormorant_Garamond'] font-medium">{writing.title}</h2>
-                    <p className="text-amber-800 mb-4 font-['Lora'] text-sm flex-grow">{writing.summary}</p>
-                    <div className="space-y-2">
+                    <h3 className="text-lg font-medium text-amber-900 mb-2 font-['Cormorant_Garamond'] leading-tight">
+                      {writing.title}
+                    </h3>
+                    <p className="text-sm text-amber-700 mb-4 font-['Lora'] leading-relaxed flex-grow line-clamp-3">
+                      {writing.summary}
+                    </p>
+                    
+                    <div className="space-y-3 text-xs">
                       {writing.genre && writing.genre.length > 0 && (
                         <div>
-                          <span className="text-xs text-amber-700 font-semibold">Genre:</span>
-                          <div className="flex flex-wrap gap-1 mt-1">
+                          <div className="text-amber-800 font-semibold mb-1">Genre</div>
+                          <div className="flex flex-wrap gap-1">
                             {writing.genre.map(g => (
-                              <span key={g} className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full text-xs">
+                              <span key={g} className="bg-amber-50 text-amber-700 px-2 py-1 rounded-md border-l-2 border-amber-300">
                                 {g}
                               </span>
                             ))}
                           </div>
                         </div>
                       )}
+                      
                       {writing.themes && writing.themes.length > 0 && (
                         <div>
-                          <span className="text-xs text-amber-700 font-semibold">Themes:</span>
-                          <div className="flex flex-wrap gap-1 mt-1">
+                          <div className="text-rose-800 font-semibold mb-1">Themes</div>
+                          <div className="flex flex-wrap gap-1">
                             {writing.themes.map(t => (
-                              <span key={t} className="bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full text-xs">
+                              <span key={t} className="bg-rose-50 text-rose-700 px-2 py-1 rounded-md border-l-2 border-rose-300">
                                 {t}
                               </span>
                             ))}
                           </div>
                         </div>
                       )}
+                      
                       {writing.tags && writing.tags.length > 0 && (
                         <div>
-                          <span className="text-xs text-amber-700 font-semibold">Tags:</span>
-                          <div className="flex flex-wrap gap-1 mt-1">
+                          <div className="text-orange-800 font-semibold mb-1">Tags</div>
+                          <div className="flex flex-wrap gap-1">
                             {writing.tags.map(t => (
-                              <span key={t} className="bg-orange-50 text-orange-700 px-2 py-0.5 rounded-full text-xs border border-orange-200">
+                              <span key={t} className="bg-orange-50 text-orange-700 px-2 py-1 rounded-md border-l-2 border-orange-300">
                                 {t}
                               </span>
                             ))}
