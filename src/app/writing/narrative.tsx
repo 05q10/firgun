@@ -1,4 +1,4 @@
-"use client";  
+"use client";
 
 import Link from 'next/link';
 import React, { useState, useEffect } from 'react';
@@ -11,7 +11,7 @@ interface Writing {
   genre: string[];
   themes: string[];
   tags: string[];
-  content: string[];
+  content: string;
 }
 
 const NarrativePage: React.FC = () => {
@@ -20,13 +20,14 @@ const NarrativePage: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
-    fetch('/writings.json')
-      .then(response => response.json())
-      .then((data: { writings: Writing[] }) => {
-        setWritings(data.writings);
-      })
-      .catch(error => console.error('Error fetching writings:', error));
-  }, []);
+  fetch('http://localhost:5000/api/writings/${id}')
+    .then(response => response.json())
+    .then((data: Writing[]) => {
+      setWritings(data);
+    })
+    .catch(error => console.error('Error fetching writings:', error));
+}, []);
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-200 to-amber-400">

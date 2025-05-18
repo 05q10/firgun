@@ -1,19 +1,47 @@
 "use client";
 import { notFound, useParams } from "next/navigation";
-import { useState } from "react";
-import writings from "../../../../public/writings.json";
+import { useEffect, useState } from "react";
 import axios from "axios";
+
+interface Writing {
+  id: string;
+  title: string;
+  summary: string;
+  genre: string[];
+  themes: string[];
+  tags: string[];
+  content: string;
+}
 
 export default function WritingPage() {
   const params = useParams();
   const id = params?.id as string;
-  const writing = writings.writings.find((w) => w.id === id);
+
+  const [writing, setWriting] = useState<Writing | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const [selectedText, setSelectedText] = useState("");
   const [chatInput, setChatInput] = useState("");
   const [chatResponse, setChatResponse] = useState("");
 
-  if (!writing) return notFound();
+ useEffect(() => {
+  if (!id) return;
+
+  console.log("Fetching writing with ID:", id);
+
+  axios
+    .get(`http://localhost:5000/api/writings/${id}`)
+    .then((res) => {
+      console.log("Fetched writing data:", res.data);
+      setWriting(res.data);
+      setLoading(false);
+    })
+    .catch((err) => {
+      console.error("Error fetching writing:", err);
+      setLoading(false);
+    });
+}, [id]);
+
 
   const handleTextSelection = () => {
     const selection = window.getSelection();
@@ -25,38 +53,32 @@ export default function WritingPage() {
   const sendToChatbot = async () => {
     try {
       const refinedPrompt = `Explain in very simple terms, avoid high terminology and provide a structured, well-formatted answer: "${chatInput}"`;
-  
+
       const response = await axios.post("/api/gemini", {
         prompt: refinedPrompt,
       });
-  
-      console.log("Raw AI Response:", response.data);
-  
-      // ✅ Ensure response is a string
+
       let aiMessage = response.data.message || "No response received";
+
       if (typeof aiMessage !== "string") {
         throw new Error("Invalid AI response format");
       }
-  
-      // ✅ Clean up and format AI response
+
       aiMessage = aiMessage
-        .replace(/\*/g, "") // Remove asterisks
-        .replace(/-\s/g, "") // Remove list dashes
-        .replace(/\n{2,}/g, "\n") // Ensure paragraphs are spaced properly
+        .replace(/\*/g, "")
+        .replace(/-\s/g, "")
+        .replace(/\n{2,}/g, "\n")
         .trim();
-  
-      // ✅ Store the raw text, so we can format it dynamically in JSX
+
       setChatResponse(aiMessage);
     } catch (error) {
       console.error("Error:", error);
       setChatResponse("Failed to get response");
     }
   };
-  
-  
-  
-  
-  
+
+  if (loading) return <p className="p-6">Loading...</p>;
+  if (!writing) return notFound();
 
   return (
     <div className="p-6 max-w-2xl mx-auto" onMouseUp={handleTextSelection}>
@@ -102,8 +124,10 @@ export default function WritingPage() {
           <div className="mt-4 p-3 bg-gray-200 rounded">
             <h3 className="font-semibold">Response:</h3>
             {chatResponse.split("\n").map((line, index) => (
-    <p key={index} className="mb-2">{line}</p>
-  ))}
+              <p key={index} className="mb-2">
+                {line}
+              </p>
+            ))}
           </div>
         )}
       </div>
